@@ -1,4 +1,3 @@
-<open_file_with_format index.html>
 <!DOCTYPE html>
 <html lang="uk">
 <head>
@@ -106,8 +105,6 @@
   .os-loc b { color:var(--ink); font-weight:800; }
   .os-timer { margin-left:.5rem; font-weight:800; color:var(--amber); }
   .os-head.os-done .os-timer { color:var(--muted); }
-
-  /* ─── grid ─── */
 
   /* ─── layout ─── */
   .grid { display:grid; grid-template-columns: minmax(0,1fr) 320px; gap:1.2rem; align-items:start; }
@@ -218,13 +215,11 @@
     display:inline-block; padding:.02rem .35rem; margin-left:.3rem;
     font-size:.62rem; font-weight:700; border:1px solid; border-radius:2px;
   }
-  /* поверхи — відтінки синього */
   .f1 { color:#4fc3f7; border-color:rgba(79,195,247,.3); background:rgba(79,195,247,.08); }
   .f2 { color:#29b6f6; border-color:rgba(41,182,246,.3); background:rgba(41,182,246,.08); }
   .f3 { color:#039be5; border-color:rgba(3,155,229,.3);  background:rgba(3,155,229,.08); }
   .f4 { color:#0277bd; border-color:rgba(2,119,189,.3);  background:rgba(2,119,189,.08); }
   .f5 { color:#01579b; border-color:rgba(1,87,155,.3);   background:rgba(1,87,155,.08); }
-  /* корпуси — різні */
   .bldg-learn  { color:var(--green);    border-color:var(--green-dim);     background:rgba(84,255,133,.06); }
   .bldg-lab    { color:var(--amber);   border-color:rgba(255,192,94,.3);  background:rgba(255,192,94,.06); }
   .bldg-sport  { color:#ff7043;        border-color:rgba(255,112,67,.3);  background:rgba(255,112,67,.06); }
@@ -268,9 +263,6 @@
   .action-tile:last-child { border-bottom:none; }
   .action-tile .g { color: var(--green); }
   .action-tile:hover { color: var(--neon); background: var(--panel-2); }
-
-  .body-pad { padding:.8rem .9rem; font-size:.78rem; color: var(--muted); }
-  .body-pad b { color: var(--ink); }
 
   .bell-list { list-style:none; display:flex; flex-direction:column; padding:0; }
   .bell-row { display:flex; justify-content:space-between; padding:.35rem .9rem; font-size:.78rem; }
@@ -339,7 +331,6 @@
   @media (max-width: 768px) {
     .statusbar { display:none; }
   }
-
 </style>
 </head>
 <body>
@@ -461,7 +452,7 @@
     { n:"IV", s:"13:30", e:"14:50", br:null }
   ];
 
-const RAW = [
+  const RAW = [
     [ { subj:"Екологія", room:"Аудиторія 411" },
       { subj:"Математика", room:"Аудиторія 407" },
       { subj:"Українська література", room:"Аудиторія 410" } ],
@@ -472,7 +463,7 @@ const RAW = [
     [ { subj:"Іноземна мова", room:"Аудиторія 302 | 313л" },
       { subj:"Всесвітня історія / Хімія", room:"Аудиторія 401 / 406" },
       { subj:"Українська мова", room:"Аудиторія 410" },
-      { subj: "Біологія / ", room: "Аудиторія 305 / " } ], // <-- ЗАПИШИ ЯК ОБ'ЄКТ
+      { subj:"Біологія", room:"Аудиторія 305" } ],
     [ { subj:"Фізика і астрономія", room:"Аудиторія 413" },
       { subj:"Інформатика", room:"Аудиторія 320" },
       { subj:"Фізична культура", room:"Аудиторія кфв" },
@@ -481,7 +472,7 @@ const RAW = [
       { subj:"Основи економічної теорії", room:"Аудиторія 418" },
       { subj:"Інформатика", room:"Аудиторія 320" } ]
   ];
-  // пари з «/» залежать від тижня: парний(1) → ліва частина, непарний(0) → права
+
   function pickWeek(w, subj, room) {
     const i = w === 1 ? 0 : 1;
     const sa = String(subj).split("/"), ra = String(room).split("/");
@@ -494,7 +485,6 @@ const RAW = [
   const W1 = RAW.map(d => d.map(s => s ? pickWeek(1, s.subj, s.room) : null));
   const SHED = [W0, W1];
 
-  // де проходить пара: кабінет → поверх + корпус
   function locInfo(room) {
     const code = String(room).replace(/^Аудиторія\s*/i, "").trim();
     let building = null, bCls = null;
@@ -512,15 +502,39 @@ const RAW = [
     return h;
   }
 
-  /* ============ СТАН ============ */
+  /* ============ СТАН ТА ДАТИ ============ */
   let week = 0, day = 0, cur = 0;
   let simNow = null;
   function liveNow() { return simNow ? new Date(simNow) : new Date(); }
 
   const $ = id => document.getElementById(id);
 
-  function todayPos() { const d = liveNow().getDay() - 1; return (d >= 0 && d <= 4) ? d : 0; }
-  function weekOfYear() { const n = liveNow(), s = new Date(n.getFullYear(), 0, 1); return Math.ceil(((n - s) / 86400000 + s.getDay() + 1) / 7); }
+  // Пряме визначення дня тижня за календарем (0 - Пн, 1 - Вт ... 4 - Пт)
+  // Якщо субота (6) чи неділя (0), повертає -1 (вихідний)
+  function getCalendarDayIndex() {
+    const dayOfWeek = liveNow().getDay(); // 0 = Нд, 1 = Пн, 2 = Вт ... 6 = Сб
+    if (dayOfWeek === 0 || dayOfWeek === 6) return -1; // Вихідні
+    return dayOfWeek - 1; // 1..5 -> 0..4
+  }
+
+  function todayPos() {
+    const idx = getCalendarDayIndex();
+    return idx === -1 ? 0 : idx; // Якщо вихідний - за замовчуванням понеділок
+  }
+
+  function weekOfYear() {
+    const n = liveNow();
+    const target = new Date(n.valueOf());
+    const dayNr = (n.getDay() + 6) % 7;
+    target.setDate(target.getDate() - dayNr + 3);
+    const firstThursday = target.valueOf();
+    target.setMonth(0, 1);
+    if (target.getDay() !== 4) {
+      target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
+    }
+    return 1 + Math.round((firstThursday - target) / 604800000);
+  }
+
   const toM = t => { const [h, m] = t.split(":"); return +h * 60 + +m; };
   const nowM = () => { const n = liveNow(); return n.getHours() * 60 + n.getMinutes(); };
 
@@ -552,15 +566,20 @@ const RAW = [
     const el = $("overview-status");
     const data = slots();
     const now = nowM();
-    const isToday = day === todayPos();
+    const calIdx = getCalendarDayIndex();
+    const isToday = (calIdx !== -1 && day === calIdx);
 
-    // інший день → перша пара дня
+    if (calIdx === -1) {
+      el.innerHTML = '<div class="os-head os-done">Сьогодні вихідний день</div><div class="os-subj os-muted">Пар немає. Переглядається розклад на ' + DAYS[day] + '</div>';
+      return;
+    }
+
     if (!isToday) {
       const first = data.find(Boolean);
       if (first) {
         const i = data.indexOf(first);
         el.innerHTML =
-          '<div class="os-head">Наступна пара · ' + BELLS[i].s + "–" + BELLS[i].e + "</div>" +
+          '<div class="os-head">Перша пара · ' + BELLS[i].s + "–" + BELLS[i].e + "</div>" +
           '<div class="os-subj">' + first.subj + "</div>" +
           '<div class="os-loc">' + roomBlock(first.room) + "</div>";
       } else {
@@ -608,7 +627,8 @@ const RAW = [
     $("sched-day").textContent = DAYS[day];
     $("sched-count").textContent = countTotal() + " " + plural(countTotal());
     $("sched-week").textContent = "Тиждень №" + weekOfYear();
-    $("reset-day").disabled = day === todayPos();
+    const calIdx = getCalendarDayIndex();
+    $("reset-day").disabled = (calIdx === -1) ? (day === 0) : (day === calIdx);
   }
 
   function renderWeekSwitch() {
@@ -623,13 +643,14 @@ const RAW = [
   function renderDayTabs() {
     const box = $("day-tabs");
     box.innerHTML = "";
+    const calIdx = getCalendarDayIndex();
     DAY_S.forEach((s, i) => {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "day-tab" + (i === day ? " active" : "");
       b.setAttribute("aria-pressed", String(i === day));
       b.setAttribute("aria-label", DAYS[i]);
-      b.innerHTML = (i === todayPos() ? '<span class="tdot">● </span>' : "") + s;
+      b.innerHTML = (i === calIdx ? '<span class="tdot">● </span>' : "") + s;
       b.addEventListener("click", () => { day = i; renderAll(); });
       box.appendChild(b);
     });
@@ -640,7 +661,8 @@ const RAW = [
     const data = slots();
     const ol = $("list");
     ol.innerHTML = "";
-    const isToday = day === todayPos();
+    const calIdx = getCalendarDayIndex();
+    const isToday = (calIdx !== -1 && day === calIdx);
 
     data.forEach((slot, i) => {
       const bell = BELLS[i];
@@ -722,7 +744,7 @@ const RAW = [
     if (!s) { out(""); return; }
     if (["help","h","?"].includes(s)) return out("керування: <kbd>←</kbd><kbd>→</kbd> день · <kbd>↑</kbd><kbd>↓</kbd> пара · <kbd>w</kbd> тиждень · <kbd>t</kbd> сьогодні · команди: today · week · пн..пт");
     if (["today","сьогодні","t"].includes(s)) { day = todayPos(); renderAll(); return out("→ сьогодні: " + DAYS[day], "ok"); }
-    if (["week","тиждень","w"].includes(s)) { week = 1 - week; renderAll(); return out("→ тиждень 0" + (week ? "парний" : "непарний"), "ok"); }
+    if (["week","тиждень","w"].includes(s)) { week = 1 - week; renderAll(); return out("→ тиждень " + (week ? "парний" : "непарний"), "ok"); }
     if (["next","далі"].includes(s)) { day = (day + 1) % 5; renderAll(); return out("→ " + DAYS[day]); }
     if (["prev","назад"].includes(s)) { day = (day + 4) % 5; renderAll(); return out("→ " + DAYS[day]); }
     const idx = DAY_A.indexOf(s);
@@ -777,14 +799,15 @@ const RAW = [
   /* ============ ЖИВІ СТАТУСИ ============ */
   let lastSig = "";
   function stateSig() {
-    const isToday = day === todayPos();
+    const calIdx = getCalendarDayIndex();
+    const isToday = (calIdx !== -1 && day === calIdx);
     return slots().map((s, i) => s ? (isToday ? pairState(i) : "p") : "_").join("");
   }
   setInterval(() => {
     const sig = stateSig();
     if (sig !== lastSig) { lastSig = sig; renderAll(); }
   }, 20000);
-  setInterval(() => { if (day === todayPos()) renderStatus(); }, 30000);
+  setInterval(() => { renderStatus(); }, 30000);
   setInterval(renderHeader, 1000);
 
   /* ============ ІНІЦІАЛІЗАЦІЯ ============ */
@@ -795,11 +818,6 @@ const RAW = [
   renderAll();
   out("готово. введи <kbd>help</kbd> або натисни <kbd>←</kbd><kbd>→</kbd>", "ok");
 
-  /* ============ F12 DEBUG ============ */
-  // зміна часу прямо з консолі браузера (F12):
-  //   TSIM.setTime("12:30") — встановити час
-  //   TSIM.setNow("2026-01-19T10:15") — встановити дату+час
-  //   TSIM.reset() — повернутись до реального часу
   window.TSIM = {
     now: () => liveNow(),
     setTime: hhmm => {
@@ -810,7 +828,6 @@ const RAW = [
     setNow: v => { simNow = new Date(v).toISOString(); lastSig = ""; renderAll(); },
     reset: () => { simNow = null; lastSig = ""; renderAll(); }
   };
-  if (window.console && console.log) console.log("[rozklad] TSIM.setTime('12:30') · TSIM.reset()");
 })();
 </script>
 </body>
