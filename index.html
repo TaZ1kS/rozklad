@@ -347,12 +347,14 @@
   <header class="app-header">
     <p class="promptline"><span class="ps">$</span> ./rozklad --group <span class="cy">КІ-13</span> --today<span class="cursor"></span></p>
     <h1 class="app-title">Усе для твого дня<span class="ok">.</span></h1>
-    <p class="sub-date"><span id="subdate"></span> · тиждень <b id="wknum">№–</b></p>
+    <p class="sub-date"><span id="subdate"></span> · тиждень <b id="wknum">№</b></p>
     <p class="status-line"><span class="status-dot"></span> Розклад актуальний</p>
   </header>
 
   <!-- STATUS -->
-  <section class="overview-status" id="overview-status" aria-label="Статус пари"></section>
+  <section class="overview-status" id="overview-status" aria-label="Статус пари">
+    <div class="os-head">Завантаження…</div>
+  </section>
 
   <div class="grid">
     <!-- SCHEDULE -->
@@ -367,12 +369,12 @@
           <span class="lesson-count" id="sched-week">—</span>
         </div>
         <div class="week-caption">
-          <span><b>тиждень №<span id="wknum2">–</span></b></span>
+          <span><b>тиждень №<span id="wknum2"></span></b></span>
           <button class="reset-day" id="reset-day" type="button">До сьогодні</button>
         </div>
         <div class="week-switch" id="week-switch" role="group">
-          <button class="week-option" data-w="0">⟦непарний<span id="wkdot0" class="auto-dot" style="display:none"> ●</span>⟧</button>
-          <button class="week-option" data-w="1">⟦парний<span id="wkdot1" class="auto-dot" style="display:none"> ●</span>⟧</button>
+          <button class="week-option" data-w="0">[непарний<span id="wkdot0" class="auto-dot" style="display:none"> ●</span>]</button>
+          <button class="week-option" data-w="1">[парний<span id="wkdot1" class="auto-dot" style="display:none"> ●</span>]</button>
         </div>
         <div class="day-tabs" id="day-tabs" role="group"></div>
         <ol class="lessons" id="list"></ol>
@@ -422,7 +424,6 @@
   </div>
 
   <footer class="app-footer">
-    <div class="bar"><span class="ln"></span><span>─</span><span class="ln"></span></div>
     Дані розкладу — група <b>КІ-13</b>
   </footer>
 </main>
@@ -463,7 +464,7 @@
     [ { subj:"Іноземна мова", room:"Аудиторія 302 | 313л" },
       { subj:"Всесвітня історія / Хімія", room:"Аудиторія 401 / 406" },
       { subj:"Українська мова", room:"Аудиторія 410" },
-      { subj:"Біологія / немає пари", room:"Аудиторія 305 /  } ],
+      { subj:"Біологія / немає пари", room:"Аудиторія 305 / " } ],
     [ { subj:"Фізика і астрономія", room:"Аудиторія 413" },
       { subj:"Інформатика", room:"Аудиторія 320" },
       { subj:"Фізична культура", room:"Аудиторія кфв" },
@@ -474,12 +475,12 @@
   ];
 
   function pickWeek(w, subj, room) {
-    const i = w === 1 ? 0 : 1;
+    const i = w === 0 ? 0 : 1;
     const sa = String(subj).split("/"), ra = String(room).split("/");
-    return {
-      subj: sa.length > 1 ? sa[i].trim() : subj,
-      room: ra.length > 1 ? ra[i].trim() : room
-    };
+    const selectedSubj = (sa.length > 1 ? sa[i] : subj).trim();
+    const selectedRoom = (ra.length > 1 ? ra[i] : room).trim();
+    if (!selectedSubj || /^немає пари$/i.test(selectedSubj)) return null;
+    return { subj: selectedSubj, room: selectedRoom || "—" };
   }
   const W0 = RAW.map(d => d.map(s => s ? pickWeek(0, s.subj, s.room) : null));
   const W1 = RAW.map(d => d.map(s => s ? pickWeek(1, s.subj, s.room) : null));
@@ -570,7 +571,16 @@
     const isToday = (calIdx !== -1 && day === calIdx);
 
     if (calIdx === -1) {
-      el.innerHTML = '<div class="os-head os-done">Сьогодні вихідний день</div><div class="os-subj os-muted">Пар немає. Переглядається розклад на ' + DAYS[day] + '</div>';
+      const first = data.find(Boolean);
+      if (first) {
+        const i = data.indexOf(first);
+        el.innerHTML =
+          '<div class="os-head os-done">Сьогодні вихідний</div>' +
+          '<div class="os-subj os-muted">' + DAYS[day] + ' · перша пара ' + BELLS[i].s + '–' + BELLS[i].e + ', ' + first.subj + '</div>' +
+          '<div class="os-loc">' + roomBlock(first.room) + '</div>';
+      } else {
+        el.innerHTML = '<div class="os-head os-done">Сьогодні вихідний</div><div class="os-subj os-muted">Пар немає. Переглядається розклад на ' + DAYS[day] + '</div>';
+      }
       return;
     }
 
@@ -616,6 +626,10 @@
         '<div class="os-subj">' + slot.subj + "</div>" +
         '<div class="os-loc">' + roomBlock(slot.room) + "</div>";
     } else {
+      if (!data.some(Boolean)) {
+        el.innerHTML = '<div class="os-head os-done">Пар немає</div>';
+        return;
+      }
       let last = null;
       data.forEach((s, i) => { if (s) last = BELLS[i].e; });
       el.innerHTML = '<div class="os-head os-done">На сьогодні пари завершено</div>' +
@@ -710,8 +724,7 @@
       }
     });
 
-    const sel = ol.querySelector(".is-sel");
-    if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: "nearest" });
+    
   }
 
   function renderBellList() {
@@ -741,7 +754,7 @@
 
   function run(v) {
     const s = v.trim().toLowerCase();
-    if (!s) { out(""); return; }
+    if (!s) { $("out").textContent = ""; return; }
     if (["help","h","?"].includes(s)) return out("керування: <kbd>←</kbd><kbd>→</kbd> день · <kbd>↑</kbd><kbd>↓</kbd> пара · <kbd>w</kbd> тиждень · <kbd>t</kbd> сьогодні · команди: today · week · пн..пт");
     if (["today","сьогодні","t"].includes(s)) { day = todayPos(); renderAll(); return out("→ сьогодні: " + DAYS[day], "ok"); }
     if (["week","тиждень","w"].includes(s)) { week = 1 - week; renderAll(); return out("→ тиждень " + (week ? "парний" : "непарний"), "ok"); }
